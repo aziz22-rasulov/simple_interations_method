@@ -3,18 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 
-# Функция для преобразования уравнения в обычном виде в f(x)
-def convert_equation_to_fx(equation_str):
-    equation_str = equation_str.strip()
-    if '=' not in equation_str:
-        return None, "Ошибка: уравнение должно содержать знак равенства '='"
-    left, right = equation_str.split('=', 1)
-    fx_str = f"({left.strip()}) - ({right.strip()})"
-    fx_str = fx_str.replace('^', '**').replace('cos', 'math.cos').replace('sin', 'math.sin')
-    fx_str = fx_str.replace('tan', 'math.tan').replace('log', 'math.log').replace('exp', 'math.exp')
-    fx_str = fx_str.replace('sqrt', 'math.sqrt').replace('e', 'math.e').replace('pi', 'math.pi')
-    return fx_str, None
-
 # Функция для поиска интервалов с корнями
 def find_intervals(f, x_min, x_max, step=0.1):
     intervals = []
@@ -29,7 +17,7 @@ def find_intervals(f, x_min, x_max, step=0.1):
         x += step
     return intervals
 
-# Функция для численного дифференцирования (для проверки сходимости)
+# Функция для численного дифференцирования
 def numerical_derivative(f, x, h=1e-5):
     try: return (f(x + h) - f(x - h)) / (2 * h)
     except: return None
@@ -64,16 +52,14 @@ st.title("🔍 Решение нелинейных уравнений (толь�
 # Боковая панель
 with st.sidebar:
     st.header("Ввод уравнения")
-    equation_normal = st.text_input("Уравнение (например, x + cos(x) = 2)", "x + cos(x) = 2")
     
-    fx_str, error = convert_equation_to_fx(equation_normal)
-    if error: st.error(error)
-    else: f_str = st.text_input("f(x) = 0", value=fx_str)
+    # Поле для f(x) = 0 в Python-формате
+    f_str = st.text_input("f(x) = 0", value="x + math.cos(x) - 2")
+    st.caption("Примеры: x + math.cos(x) - 2, x**2 - 2, math.exp(x) - x - 2")
     
-    st.caption("Примеры: x^2 = 2 → f(x) = x**2 - 2; e^x = x+2 → f(x) = math.exp(x)-x-2")
-    
-    g_str = st.text_input("Функция g(x) (x = g(x))", "2 - math.cos(x)")
-    st.caption("Примеры: для x+cos(x)=2 → 2 - math.cos(x); для x^2=2 → (x+2/x)/2")
+    # Поле для g(x) = x
+    g_str = st.text_input("Функция g(x) (x = g(x))", value="2 - math.cos(x)")
+    st.caption("Примеры: 2 - math.cos(x), (x + 2/x)/2, math.log(x + 2)")
     
     x0 = st.number_input("Начальное приближение x0", 2.98, step=0.1)
     epsilon = st.number_input("Точность", 1e-6, format="%.6f")

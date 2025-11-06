@@ -183,12 +183,7 @@ if st.sidebar.button("Рассчитать"):
         ax2.plot(range(len(errors)), np.log10(errors), 'bo-')
         ax2.set_xlabel('Номер итерации'); ax2.set_ylabel('log10(ошибка)'); ax2.grid(True)
         
-        # Добавляем линию, показывающую оценку ошибки
-        if q < 1 and error_estimate is not None:
-            estimated_error = q / (1 - q) * np.array(errors)
-            ax2.plot(range(len(estimated_error)), np.log10(estimated_error), 'r--', 
-                    label='Теоретическая оценка\nq/(1-q)*|x_k - x_{k-1}|')
-            ax2.legend()
+       
         
         st.pyplot(fig2)
         
@@ -289,4 +284,5 @@ st.markdown("""
 
 > 💡 **Важно:** Теоретическая оценка ошибки дает верхнюю границу погрешности, реальная ошибка может быть меньше.
 """)
+
 

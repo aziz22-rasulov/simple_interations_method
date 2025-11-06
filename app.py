@@ -3,107 +3,168 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 
+# Функция для преобразования уравнения в обычном виде в f(x)
+def convert_equation_to_fx(equation_str):
+    equation_str = equation_str.strip()
+    if '=' not in equation_str:
+        return None, "Ошибка: уравнение должно содержать знак равенства '='"
+    left, right = equation_str.split('=', 1)
+    fx_str = f"({left.strip()}) - ({right.strip()})"
+    fx_str = fx_str.replace('^', '**').replace('cos', 'math.cos').replace('sin', 'math.sin')
+    fx_str = fx_str.replace('tan', 'math.tan').replace('log', 'math.log').replace('exp', 'math.exp')
+    fx_str = fx_str.replace('sqrt', 'math.sqrt').replace('e', 'math.e').replace('pi', 'math.pi')
+    return fx_str, None
+
+# Функция для поиска интервалов с корнями
+def find_intervals(f, x_min, x_max, step=0.1):
+    intervals = []
+    x = x_min
+    while x < x_max:
+        try:
+            f1 = f(x)
+            f2 = f(x + step)
+            if f1 * f2 < 0:
+                intervals.append((x, x + step))
+        except: pass
+        x += step
+    return intervals
+
+# Функция для численного дифференцирования (для проверки сходимости)
+def numerical_derivative(f, x, h=1e-5):
+    try: return (f(x + h) - f(x - h)) / (2 * h)
+    except: return None
+
+# Собственная реализация метода простой итерации
+def simple_iteration(g, x0, epsilon, max_iter):
+    x_prev = x0
+    iterations = [x0]
+    errors = []
+    
+    for _ in range(max_iter):
+        try:
+            x_next = g(x_prev)
+        except Exception as e:
+            return None, None, f"Ошибка: {str(e)}"
+        
+        error = abs(x_next - x_prev)
+        errors.append(error)
+        iterations.append(x_next)
+        
+        if error < epsilon:
+            break
+            
+        x_prev = x_next
+    
+    return iterations, errors, None
+
 # Настройка страницы
 st.set_page_config(page_title="Метод простой итерации", layout="wide")
-st.title("📈 Визуализация метода простой итерации")
+st.title("🔍 Решение нелинейных уравнений (только метод простой итерации)")
 
-# Боковая панель для настроек
+# Боковая панель
 with st.sidebar:
-    st.header("Настройки решения")
-    g_str = st.text_input("Функция g(x)", "2 - math.cos(x)")
-    st.caption("Примеры: '2 - math.cos(x)', '(x + 2/x)/2', 'math.sqrt(2)'")
+    st.header("Ввод уравнения")
+    equation_normal = st.text_input("Уравнение (например, x + cos(x) = 2)", "x + cos(x) = 2")
     
-    x0 = st.number_input("Начальное приближение x0", value=2.98, step=0.1)
-    epsilon = st.number_input("Точность (epsilon)", value=1e-6, format="%.6f")
-    max_iter = st.slider("Максимальное число итераций", 10, 1000, 100)
+    fx_str, error = convert_equation_to_fx(equation_normal)
+    if error: st.error(error)
+    else: f_str = st.text_input("f(x) = 0", value=fx_str)
     
-    st.markdown("---")
-    st.info("""
-    **Важно!** 
-    - Преобразуйте уравнение f(x)=0 в вид x = g(x)
-    - Используйте math. для математических функций
-    - Для корня x²=2 используйте g(x)=(x+2/x)/2
-    """)
+    st.caption("Примеры: x^2 = 2 → f(x) = x**2 - 2; e^x = x+2 → f(x) = math.exp(x)-x-2")
+    
+    g_str = st.text_input("Функция g(x) (x = g(x))", "2 - math.cos(x)")
+    st.caption("Примеры: для x+cos(x)=2 → 2 - math.cos(x); для x^2=2 → (x+2/x)/2")
+    
+    x0 = st.number_input("Начальное приближение x0", 2.98, step=0.1)
+    epsilon = st.number_input("Точность", 1e-6, format="%.6f")
+    max_iter = st.slider("Макс. итераций", 10, 1000, 100)
+    
+    col1, col2 = st.columns(2)
+    with col1: find_intervals_btn = st.button("Найти интервалы")
+    with col2: study_convergence_btn = st.button("Исследовать скорость сходимости")
+    
+    st.info("Важно: Для метода простой итерации важно правильно преобразовать уравнение в вид x = g(x)")
 
-# Кнопка запуска
+# Кнопка "Рассчитать"
 if st.sidebar.button("Рассчитать"):
     try:
-        # Создаем функцию g(x) из строки
+        # Создаем функции f(x) и g(x)
+        f = lambda x: eval(f_str, {"math": math, "np": np}, {"x": x})
         g = lambda x: eval(g_str, {"math": math, "np": np}, {"x": x})
         
-        # Подготовка данных для графика
-        x_min = max(0, x0 - 3)
-        x_max = x0 + 3
-        x_vals = np.linspace(x_min, x_max, 1000)
-        y_g = [g(x) for x in x_vals]
-        y_x = x_vals  # прямая y = x
+        # Поиск интервалов
+        intervals = find_intervals(f, x0-5, x0+5)
         
-        # Вычисление итераций
-        x_prev = x0
-        iterations = [x0]
-        for i in range(max_iter):
-            x_next = g(x_prev)
-            iterations.append(x_next)
-            if abs(x_next - x_prev) < epsilon:
-                break
-            x_prev = x_next
+        # Выполняем метод простой итерации
+        iterations, errors, error_msg = simple_iteration(g, x0, epsilon, max_iter)
+        if error_msg: raise Exception(error_msg)
         
-        # Построение графика
-        fig, ax = plt.subplots(figsize=(10, 6))
-        
-        # График g(x) и y=x
-        ax.plot(x_vals, y_g, label='y = g(x)', color='#1f77b4', linewidth=2)
-        ax.plot(x_vals, y_x, label='y = x', color='#ff7f0e', linestyle='--', linewidth=2)
-        
-        # Лестничная диаграмма (итерации)
-        for i in range(len(iterations)-1):
-            # Горизонтальный отрезок (x_n -> x_{n+1} на y=x)
-            ax.plot([iterations[i], iterations[i+1]], [iterations[i], iterations[i]], 
-                    color='#2ca02c', alpha=0.8, linewidth=1.5)
-            # Вертикальный отрезок (x_{n+1} -> y=g(x_{n+1}))
-            ax.plot([iterations[i+1], iterations[i+1]], [iterations[i], iterations[i+1]], 
-                    color='#2ca02c', alpha=0.8, linewidth=1.5)
-        
-        # Точки итераций
-        ax.scatter(iterations, iterations, color='#d62728', s=50, zorder=5)
-        
-        # Подписи
-        ax.set_xlabel('x', fontsize=12)
-        ax.set_ylabel('y', fontsize=12)
-        ax.set_title('Процесс сходимости метода простой итерации', fontsize=14)
-        ax.legend(fontsize=10)
-        ax.grid(True, linestyle='--', alpha=0.7)
-        ax.axhline(y=0, color='k', linestyle='-', alpha=0.1)
-        ax.axvline(x=0, color='k', linestyle='-', alpha=0.1)
-        
-        # Отображение графика
-        st.pyplot(fig)
+        # Проверка условия сходимости
+        deriv = numerical_derivative(g, iterations[-1])
+        condition = "✅ Сходится" if deriv is not None and abs(deriv) < 1 else "⚠️ Не сходится"
         
         # Вывод результатов
         st.subheader("✅ Результаты вычислений")
         col1, col2 = st.columns(2)
-        
         with col1:
-            st.metric("Корень уравнения", f"{iterations[-1]:.8f}")
-            st.metric("Число итераций", len(iterations)-1)
-            st.metric("Точность", f"{abs(iterations[-1] - iterations[-2]):.2e}")
-        
+            st.metric("Корень", f"{iterations[-1]:.8f}")
+            st.metric("Итераций", len(iterations)-1)
+            st.metric("Точность", f"{abs(iterations[-1]-iterations[-2]):.2e}")
         with col2:
-            st.metric("Проверка g(x)", f"{g(iterations[-1]):.8f}")
-            st.metric("Разница |x - g(x)|", f"{abs(iterations[-1] - g(iterations[-1])):.2e}")
-            st.metric("Сходимость", "✅ Сходится" if len(iterations) < max_iter else "⚠️ Достигнуто max_iter")
+            st.metric("g(x)", f"{g(iterations[-1]):.8f}")
+            st.metric("|x - g(x)|", f"{abs(iterations[-1]-g(iterations[-1])):.2e}")
+            st.metric("Сходимость", condition)
         
-        # Дополнительная информация
-        st.markdown("### 📝 Как читать график:")
-        st.markdown("""
-        - **Синяя линия**: график функции y = g(x)
-        - **Оранжевая пунктирная линия**: прямая y = x
-        - **Зелёные линии**: шаги метода итерации
-        - **Красные точки**: значения на каждой итерации
-        """)
+        # Интервалы
+        st.subheader("🔍 Интервалы с корнями")
+        if intervals:
+            for i, (a, b) in enumerate(intervals):
+                st.write(f"Интервал {i+1}: [{a:.4f}, {b:.4f}]")
+        else:
+            st.warning("Интервалы не найдены")
+        
+        # График процесса сходимости
+        st.subheader("📊 График процесса сходимости")
+        fig, ax = plt.subplots(figsize=(10, 6))
+        x_min, x_max = min(iterations)-1, max(iterations)+1
+        x_vals = np.linspace(x_min, x_max, 1000)
+        y_g = [g(x) for x in x_vals]
+        y_x = x_vals
+        
+        ax.plot(x_vals, y_g, 'b-', label='y = g(x)')
+        ax.plot(x_vals, y_x, 'r--', label='y = x')
+        
+        for i in range(len(iterations)-1):
+            ax.plot([iterations[i], iterations[i+1]], [iterations[i], iterations[i]], 'g-', alpha=0.8)
+            ax.plot([iterations[i+1], iterations[i+1]], [iterations[i], iterations[i+1]], 'g-', alpha=0.8)
+        
+        ax.scatter(iterations, iterations, color='red', s=50)
+        ax.set_xlabel('x'); ax.set_ylabel('y'); ax.grid(True); ax.legend()
+        st.pyplot(fig)
+        
+        # График скорости сходимости
+        st.subheader("📈 График скорости сходимости")
+        fig2, ax2 = plt.subplots(figsize=(10, 6))
+        ax2.plot(range(len(errors)), np.log10(errors), 'bo-')
+        ax2.set_xlabel('Номер итерации'); ax2.set_ylabel('log10(ошибка)'); ax2.grid(True)
+        st.pyplot(fig2)
+        
+        # Исследование скорости от точности
+        if study_convergence_btn:
+            st.subheader("📊 Зависимость итераций от точности")
+            epsilons = [10**(-i) for i in range(2, 11)]
+            iters = []
+            for eps in epsilons:
+                _, _, errors, _ = simple_iteration(g, x0, eps, max_iter)
+                iters.append(len(errors))
             
+            fig3, ax3 = plt.subplots(figsize=(10, 6))
+            ax3.plot(np.log10(epsilons), iters, 'go-')
+            ax3.set_xlabel('log10(точность)'); ax3.set_ylabel('Число итераций'); ax3.grid(True)
+            st.pyplot(fig3)
+    
     except Exception as e:
-        st.error(f"❌ Ошибка в вычислениях: {str(e)}")
+        st.error(f"❌ Ошибка: {str(e)}")
         st.markdown("""
         **Проверьте:**
         - Корректность функции g(x)
@@ -113,22 +174,6 @@ if st.sidebar.button("Рассчитать"):
         st.code("""
         Примеры корректных функций:
         - Для x + cos(x) = 2: 2 - math.cos(x)
-        - Для x² - 2 = 0: (x + 2/x)/2
-        - Для x³ - x - 1 = 0: (x + 1)**(1/3)
+        - Для x^2 - 2 = 0: (x + 2/x)/2
+        - Для x^3 - x - 1 = 0: (x + 1)**(1/3)
         """)
-
-# Инструкция для пользователя
-st.markdown("""
----
-### 📚 Как использовать это приложение:
-1. В поле **"Функция g(x)"** введите преобразованное уравнение в виде x = g(x)
-2. Задайте **начальное приближение x0**
-3. Настройте **точность** и **максимальное число итераций**
-4. Нажмите **"Рассчитать"**
-5. Наблюдайте за графиком и результатами!
-
-> 💡 **Совет**: Если метод не сходится, попробуйте:
-> - Изменить начальное приближение
-> - Выбрать другое преобразование уравнения
-> - Увеличить число итераций
-""")

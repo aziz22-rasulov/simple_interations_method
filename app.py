@@ -127,8 +127,8 @@ if st.sidebar.button("Рассчитать"):
         iterations, errors, derivatives, q, error_estimate = simple_iteration(g, x0, epsilon, max_iter)
         
         # Проверка на ошибки
-        if iterations is None or errors is None:
-            raise Exception(error_msg)
+        if iterations is None:
+            raise Exception("Произошла ошибка при вычислениях")
         
         # Проверка условия сходимости
         convergence_condition = "✅ Условие сходимости выполняется" if q < 1 else "⚠️ Условие сходимости НЕ выполняется"
@@ -151,7 +151,7 @@ if st.sidebar.button("Рассчитать"):
         # Вывод теоретической оценки ошибки
         if q < 1 and error_estimate is not None:
             st.subheader("🔍 Теоретическая оценка ошибки")
-            st.info(f"По теореме: |x_k - x*| ≤ q/(1-q) * |x_k - x_{k-1}|")
+            st.info(f"По теореме: |x_k - x*| ≤ q/(1-q) * |x_k - x_{{k-1}}|")
             st.info(f"q = {q:.6f}, поэтому |x_k - x*| ≤ {error_estimate:.2e}")
         else:
             st.warning("⚠️ Условие сходимости не выполняется, теоретическая оценка ошибки недоступна")
@@ -193,7 +193,7 @@ if st.sidebar.button("Рассчитать"):
         if q < 1 and error_estimate is not None:
             estimated_error = q / (1 - q) * np.array(errors)
             ax2.plot(range(len(estimated_error)), np.log10(estimated_error), 'r--', 
-                    label=f'Теоретическая оценка\nq/(1-q)*|x_k - x_{k-1}|')
+                    label='Теоретическая оценка\nq/(1-q)*|x_k - x_{k-1}|')
             ax2.legend()
         
         st.pyplot(fig2)
@@ -203,22 +203,28 @@ if st.sidebar.button("Рассчитать"):
             st.subheader("📊 Зависимость итераций от точности")
             epsilons = [10**(-i) for i in range(2, 11)]
             iters = []
+            q_values = []
+            
             for eps in epsilons:
-                _, _, _, q_val, _ = simple_iteration(g, x0, eps, max_iter)
-                if q_val is not None and q_val < 1:
-                    iters.append(len(_) - 1)
+                result = simple_iteration(g, x0, eps, max_iter)
+                if result[0] is not None:  # Если итерации успешны
+                    iters_val = len(result[0]) - 1  # Число итераций
+                    q_val = result[3]  # Значение q
+                    iters.append(iters_val)
+                    q_values.append(q_val)
             
             fig3, ax3 = plt.subplots(figsize=(10, 6))
-            ax3.plot(np.log10(epsilons), iters, 'go-')
+            ax3.plot(np.log10(epsilons[:len(iters)]), iters, 'go-', label='Практические результаты')
             ax3.set_xlabel('log10(точность)'); ax3.set_ylabel('Число итераций'); ax3.grid(True)
             
             # Добавляем линию, показывающую теоретическую зависимость
-            # Для линейной сходимости число итераций k ≈ log(epsilon)/log(q)
-            if q < 1:
-                theoretical_iters = [-np.log(eps)/np.log(q) for eps in epsilons]
-                ax3.plot(np.log10(epsilons), theoretical_iters, 'r--', 
-                        label=f'Теоретическая зависимость\nlog(epsilon)/log({q:.2f})')
-                ax3.legend()
+            if any(q_val < 1 for q_val in q_values):
+                best_q = min(q_values)  # Берем минимальное q для наилучшей оценки
+                if best_q < 1:
+                    theoretical_iters = [-np.log(eps)/np.log(best_q) for eps in epsilons[:len(iters)]]
+                    ax3.plot(np.log10(epsilons[:len(iters)]), theoretical_iters, 'r--', 
+                            label=f'Теоретическая зависимость\nlog(epsilon)/log({best_q:.2f})')
+                    ax3.legend()
             
             st.pyplot(fig3)
     

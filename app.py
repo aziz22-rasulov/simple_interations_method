@@ -5,45 +5,30 @@ from numpy.linalg import norm
 
 st.set_page_config(page_title="Схема Халецкого", page_icon="🧮", layout="wide")
 
-def add_bg_image():
-    """Добавляет фоновое изображение из интернета"""
-    # 🔗 ЗАМЕНИТЕ ЭТУ ССЫЛКУ НА СВОЮ КАРТИНКУ ИЗ ИНТЕРНЕТА
-    image_url = "https://images.unsplash.com/photo-1552825291-d028a2f9e9c2?w=1200"
-    
-    # CSS стили для фона
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background-image: url("{image_url}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-        }}
-        
-        /* Полупрозрачный слой для лучшей читаемости текста */
-        .content-container {{
-            background: rgba(255, 255, 255, 0.85);
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }}
-        
-        /* Адаптация для мобильных устройств */
-        @media (max-width: 768px) {{
-            .stApp {{
-                background-attachment: scroll;
-            }}
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+import base64
 
-# Вызываем функцию для добавления фона
-add_bg_image()
+def get_base64_image(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
 
+# Получаем base64-код изображения
+bg_image_base64 = get_base64_image("background.png")
+
+# Применяем фон
+st.markdown(
+    f"""
+    <style>
+    .stApp {{
+        background-image: url("data:image/png;base64,{bg_image_base64}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 
 def haltsky_decomposition(A):
@@ -232,6 +217,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 

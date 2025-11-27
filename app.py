@@ -1,10 +1,31 @@
 import streamlit as st
 import numpy as np
 import time
-from numpy.linalg import norm
+from numpy.linalg import norm, det
 
 st.set_page_config(page_title="Схема Халецкого", page_icon="🧮", layout="wide")
 
+def is_symmetric(A, tol=1e-8):
+    """Проверка симметричности матрицы"""
+    return np.allclose(A, A.T, atol=tol)
+
+def is_positive_definite(A):
+    """Проверка положительной определённости через условие Сильвестра (главные миноры)"""
+    n = A.shape[0]
+    for i in range(1, n+1):
+        minor = A[:i, :i]
+        if det(minor) <= 0:
+            return False
+    return True
+
+def is_diagonally_dominant(A):
+    """Проверка диагонального преобладания"""
+    n = len(A)
+    for i in range(n):
+        row_sum = sum(abs(A[i, j]) for j in range(n) if j != i)
+        if abs(A[i, i]) <= row_sum:
+            return False
+    return True
 
 def haltsky_decomposition(A):
     """Разложение A = B*C по формулам из учебника"""
@@ -68,23 +89,35 @@ def verify_solution(A, b, x):
     relative_residual = residual / norm(b)
     return Ax, residual, relative_residual
 
+def simple_iterations(A, b, max_iter=10000, tol=1e-6):
+    """Решение системы методом простых итераций"""
+    n = len(A)
+    # Проверка диагонального преобладания для сходимости
+    if not is_diagonally_dominant(A):
+        return None, None, None  # Метод может не сходиться
+    
+    D = np.diag(np.diag(A))
+    D_inv = np.diag(1.0 / np.diag(A))
+    B = np.eye(n) - D_inv @ A
+    c = D_inv @ b
+    
+    x = np.zeros(n)
+    start_time = time.time()
+    iterations = 0
+    for _ in range(max_iter):
+        x_new = B @ x + c
+        iterations += 1
+        if norm(x_new - x) < tol:
+            break
+        x = x_new
+    execution_time = time.time() - start_time
+    return x, execution_time, iterations
+
 def generate_test_matrix(n):
-    """Генерация матрицы, удовлетворяющей условиям применимости метода Халецкого"""
-    # Создаем нижнюю треугольную матрицу B с ненулевой диагональю
-    B = np.zeros((n, n))
-    for i in range(n):
-        B[i, i] = i + 1
-        for j in range(i):
-            B[i, j] = np.random.uniform(-5, 5)
-    
-    # Создаем верхнюю треугольную матрицу C с единицами на диагонали
-    C = np.eye(n)
-    for i in range(n):
-        for j in range(i+1, n):
-            C[i, j] = np.random.uniform(-5, 5)
-    
-    # Формируем матрицу A = B * C
-    A = B @ C
+    """Генерация симметричной положительно определённой матрицы A = B @ B.T"""
+    B = np.tril(np.random.uniform(-5, 5, (n, n)))
+    np.fill_diagonal(B, np.random.uniform(1, 10, n))  # Положительные диагональные элементы
+    A = B @ B.T
     b = np.random.uniform(-10, 10, n)
     return A, b
 
@@ -197,6 +230,14 @@ def main():
             st.markdown(f"**Время решения:** {exec_time:.6f} сек")
             st.markdown(f"**Относительная невязка:** {rel_residual:.2e}")
             
+            # Проверка условий применимости
+            if is_symmetric(A):
+                st.info("✅ Матрица симметричная (условие 2 выполнено)")
+            if is_positive_definite(A):
+                st.info("✅ Матрица положительно определённая (условие 1 выполнено)")
+            if is_diagonally_dominant(A):
+                st.info("✅ Матрица имеет диагональное преобладание (условие 3 выполнено)")
+            
             # Вывод всей сгенерированной матрицы
             with st.expander("Показать сгенерированную матрицу A (все элементы)", expanded=False):
                 st.markdown("#### Матрица коэффициентов A:")
@@ -237,13 +278,17 @@ def main():
         
         if st.button("Решить систему", type="primary"):
             try:
-                # Проверка условий применимости
-                try:
-                    B_test, C_test = haltsky_decomposition(A)
-                    st.success("✅ Условия применимости метода выполнены")
-                except Exception as e:
-                    st.error(f"❌ Ошибка: {str(e)}")
+                # Проверка условий применимости по замечаниям
+                if not is_symmetric(A):
+                    st.error("❌ Ошибка: Матрица должна быть симметричной (условие 2)")
                     st.stop()
+                
+                if not is_positive_definite(A):
+                    st.error("❌ Ошибка: Матрица должна быть положительно определённой (условие 1)")
+                    st.stop()
+                
+                if not is_diagonally_dominant(A):
+                    st.warning("⚠️ Предупреждение: Матрица не имеет диагонального преобладания (условие 3). Метод может не сойтись.")
                 
                 # Решение системы
                 x, B, C, exec_time = haltsky_solve(A, b)
@@ -265,29 +310,24 @@ def main():
                     Разница = {Ax[i] - b[i]:.2e}
                     """, unsafe_allow_html=True)
                 
-                # Исследование скорости (для сравнения)
-                if n >= 3:
-                    st.markdown("### Скорость работы метода:")
-                    start_time = time.time()
-                    x_gauss = np.linalg.solve(A, b)
-                    gauss_time = time.time() - start_time
-                    halt_time = time.time() - start_time - gauss_time
+                # Сравнение скорости с методом простых итераций
+                st.markdown("### Сравнение скорости выполнения:")
+                x_iter, iter_time, iters = simple_iterations(A, b)
+                
+                if x_iter is not None and iter_time is not None:
+                    st.markdown(f"**Метод Халецкого:** {exec_time:.6f} сек")
+                    st.markdown(f"**Метод простых итераций:** {iter_time:.6f} сек (итераций: {iters})")
                     
-                    st.markdown(f"Метод Халецкого: {halt_time:.6f} сек")
-                    st.markdown(f"Метод Гаусса (встроенная функция): {gauss_time:.6f} сек")
+                    # Проверка решения метода простых итераций
+                    Ax_iter = A @ x_iter
+                    residual_iter = norm(Ax_iter - b)
+                    rel_residual_iter = residual_iter / norm(b)
+                    st.markdown(f"**Относительная невязка (итерации):** {rel_residual_iter:.2e}")
+                else:
+                    st.warning("Метод простых итераций не сходится (матрица не удовлетворяет условию диагонального преобладания)")
             
             except Exception as e:
                 st.error(f"❌ Ошибка при решении: {str(e)}")
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-

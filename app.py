@@ -3,6 +3,8 @@ import numpy as np
 import time
 from numpy.linalg import norm
 
+st.set_page_config(page_title="Схема Халецкого", page_icon="🧮", layout="wide")
+
 def add_bg_image():
     """Добавляет фоновое изображение из интернета"""
     # 🔗 ЗАМЕНИТЕ ЭТУ ССЫЛКУ НА СВОЮ КАРТИНКУ ИЗ ИНТЕРНЕТА
@@ -42,7 +44,7 @@ def add_bg_image():
 # Вызываем функцию для добавления фона
 add_bg_image()
 
-st.set_page_config(page_title="Схема Халецкого", page_icon="🧮", layout="wide")
+
 
 def haltsky_decomposition(A):
     """Разложение A = B*C по формулам из учебника"""
@@ -230,4 +232,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

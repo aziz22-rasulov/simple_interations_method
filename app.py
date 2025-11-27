@@ -3,6 +3,45 @@ import numpy as np
 import time
 from numpy.linalg import norm
 
+def add_bg_image():
+    """Добавляет фоновое изображение из интернета"""
+    # 🔗 ЗАМЕНИТЕ ЭТУ ССЫЛКУ НА СВОЮ КАРТИНКУ ИЗ ИНТЕРНЕТА
+    image_url = "https://ru.freepik.com/free-vector/gradient-hexagonal-background_13756536.htm#fromView=keyword&page=1&position=34&uuid=1ff9bddf-0c3e-4ba1-bdd2-c47e26da6487&query=%D0%A4%D0%BE%D0%BD+%D0%B4%D0%BB%D1%8F+%D1%81%D0%B0%D0%B9%D1%82%D0%B0"
+    
+    # CSS стили для фона
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("{image_url}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }}
+        
+        /* Полупрозрачный слой для лучшей читаемости текста */
+        .content-container {{
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }}
+        
+        /* Адаптация для мобильных устройств */
+        @media (max-width: 768px) {{
+            .stApp {{
+                background-attachment: scroll;
+            }}
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+# Вызываем функцию для добавления фона
+add_bg_image()
+
 st.set_page_config(page_title="Схема Халецкого", page_icon="🧮", layout="wide")
 
 def haltsky_decomposition(A):
@@ -191,3 +230,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

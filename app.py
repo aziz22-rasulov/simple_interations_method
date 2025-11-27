@@ -89,98 +89,11 @@ def generate_test_matrix(n):
     return A, b
 
 def main():
-    # 💧 Проверка состояния приложения
-    if 'started' not in st.session_state:
-        st.session_state.started = False
-    
-    # 🌄 Стартовый экран с фоном и кнопкой liquid glass
-    if not st.session_state.started:
-        # CSS для стиля liquid glass (голубой/зеленый градиент вместо красного)
-        st.markdown("""
-        <style>
-        .liquid-glass-btn {
-            background: rgba(255, 255, 255, 0.25);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 16px;
-            color: white !important;
-            font-size: 1.3rem;
-            font-weight: 600;
-            padding: 15px 30px;
-            margin: 0 auto;
-            width: 250px;
-            display: block;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            background: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
-        }
-        .liquid-glass-btn:hover {
-            background: linear-gradient(135deg, #2980b9 0%, #27ae60 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-        }
-        .liquid-glass-btn:active {
-            transform: translateY(0);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }
-        .start-screen {
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        
-        try:
-            # Автоматическое определение пути к файлу
-            import os
-            import base64
-            
-            image_path = "background.png"
-            
-            if os.path.exists(image_path):
-                with open(image_path, "rb") as img_file:
-                    bg_image_base64 = base64.b64encode(img_file.read()).decode()
-                
-                st.markdown(f"""
-                <style>
-                .start-screen {{
-                    background: url("image/png;base64,{bg_image_base64}");
-                    background-size: cover;
-                    background-position: center;
-                    background-repeat: no-repeat;
-                }}
-                </style>
-                """, unsafe_allow_html=True)
-        except:
-            pass
-        
-        # Только фон и кнопка - никакого текста
-        st.markdown('<div class="start-screen">', unsafe_allow_html=True)
-        
-        # Центрированная кнопка в стиле liquid glass
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            if st.button("🚀 Начать", type="primary", use_container_width=True, key="start_btn"):
-                st.session_state.started = True
-                st.rerun()
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        return  # Останавливаем выполнение, пока пользователь не нажмёт "Начать"
-    
-    # 📊 Основной интерфейс
     st.title("🧮 Схема Халецкого")
     st.markdown("### Решение систем линейных уравнений")
     
     mode = st.radio("Выберите режим", ["Ручной ввод", "Сгенерировать систему (n≥50)"], horizontal=True)
-   
+    
     if mode == "Сгенерировать систему (n≥50)":
         n = st.slider("Размер системы", min_value=50, max_value=100, value=50)
         
@@ -279,6 +192,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 

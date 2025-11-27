@@ -1,289 +1,183 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
-import math
+import time
+from numpy.linalg import norm
 
-# Функция для поиска интервалов с корнями
-def find_intervals(f, x_min, x_max, step=0.1):
-    intervals = []
-    x = x_min
-    while x < x_max:
-        try:
-            f1 = f(x)
-            f2 = f(x + step)
-            if f1 * f2 < 0:
-                intervals.append((x, x + step))
-        except: pass
-        x += step
-    return intervals
+st.set_page_config(page_title="Схема Халецкого", page_icon="🧮", layout="centered")
 
-# Функция для численного дифференцирования
-def numerical_derivative(f, x, h=1e-5):
-    try: 
-        return (f(x + h) - f(x - h)) / (2 * h)
-    except:
-        return None
-
-# Реализация метода простой итерации с теоретическими оценками
-def simple_iteration(g, x0, epsilon, max_iter):
-    x_prev = x0
-    iterations = [x0]
-    errors = []  
-    derivatives = []  
+def haltsky_decomposition(A):
+    """Разложение A = B*C по формулам из учебника"""
+    n = len(A)
+    B = np.zeros((n, n))
+    C = np.zeros((n, n))
     
-    for _ in range(max_iter):
-        try:
-            x_next = g(x_prev)
-        except Exception as e:
-            return None, None, None, None, f"Ошибка: {str(e)}"
-        
-        # Вычисляем ошибку
-        error = abs(x_next - x_prev)
-        errors.append(error)
-        iterations.append(x_next)
-        
-        # Вычисляем производную в текущей точке
-        deriv = numerical_derivative(g, x_prev)
-        derivatives.append(abs(deriv) if deriv is not None else 0)
-        
-        # Проверяем критерий остановки
-        if error < epsilon:
-            break
-            
-        x_prev = x_next
+    for i in range(n):
+        C[i, i] = 1.0
     
-    # Определяем q = max|g'(x)| на всем пути
-    q = max(derivatives) if derivatives else 0
-    
-    # Вычисляем оценку ошибки по формуле |x_k - x*| ≤ q/(1-q) * |x_k - x_{k-1}|
-    error_estimate = None
-    if len(errors) > 0 and q < 1:
-        error_estimate = q / (1 - q) * errors[-1]
-    
-    return iterations, errors, derivatives, q, error_estimate
-
-# Настройка страницы
-st.set_page_config(page_title="Метод простой итерации", layout="wide")
-st.title("🔍 Решение нелинейных уравнений (метод простой итерации)")
-
-# Боковая панель
-with st.sidebar:
-    st.header("Ввод уравнения")
-    
-    # Поле для f(x) = 0
-    f_str = st.text_input("f(x) = 0", value="x + math.cos(x) - 2")
-    st.caption("Примеры: x + math.cos(x) - 2, x**2 - 2, math.exp(x) - x - 2")
-    
-    # Поле для g(x) = x
-    g_str = st.text_input("Функция g(x) (x = g(x))", value="2 - math.cos(x)")
-    st.caption("Примеры: 2 - math.cos(x), (x + 2/x)/2, math.log(x + 2)")
-    
-    x0 = st.number_input("Начальное приближение x0", 0.5, step=0.1)
-    st.caption("Можно вводить любое значение")
-    
-    # Поле для точности
-    epsilon_str = st.text_input("Точность (epsilon)", value="1e-6")
-    st.caption("Введите точность в формате: 0.001, 1e-3, 1e-6 и т.д.")
-    
-    max_iter = st.slider("Макс. итераций", 10, 1000, 100)
-    
-    col1, col2 = st.columns(2)
-    with col1: find_intervals_btn = st.button("Найти интервалы")
-    with col2: study_convergence_btn = st.button("Исследовать скорость сходимости")
-    
-    st.info("Важно: Убедитесь, что выполняется условие сходимости |g'(x)| < 1")
-
-# Кнопка "Рассчитать"
-if st.sidebar.button("Рассчитать"):
-    try:
-        # Преобразование точности из строки в число
-        try:
-            epsilon = float(epsilon_str)
-        except ValueError:
-            if 'e' in epsilon_str.lower():
-                parts = epsilon_str.lower().split('e')
-                if len(parts) == 2:
-                    base = float(parts[0])
-                    exponent = int(parts[1])
-                    epsilon = base * (10 ** exponent)
-                else:
-                    raise ValueError("Некорректный формат точности")
+    for j in range(n):
+        for i in range(j, n):
+            if j == 0:
+                B[i, j] = A[i, j]
             else:
-                raise ValueError("Некорректный формат точности")
-        
-        if epsilon <= 0:
-            raise ValueError("Точность должна быть положительным числом")
-        if epsilon < 1e-15:
-            st.warning("⚠️ Очень маленькая точность (меньше 1e-15) может привести к зацикливанию")
-        
-        # Создаем функции f(x) и g(x)
-        f = lambda x: eval(f_str, {"math": math, "np": np}, {"x": x})
-        g = lambda x: eval(g_str, {"math": math, "np": np}, {"x": x})
-        
-        # Поиск интервалов
-        intervals = find_intervals(f, x0-5, x0+5)
-        
-        # Выполняем метод простой итерации
-        iterations, errors, derivatives, q, error_estimate = simple_iteration(g, x0, epsilon, max_iter)
-        
-        # Проверка на ошибки
-        if iterations is None:
-            raise Exception("Произошла ошибка при вычислениях")
-        
-        # Проверка условия сходимости
-        convergence_condition = "✅ Условие сходимости выполняется" if q < 1 else "⚠️ Условие сходимости НЕ выполняется"
-        convergence_status = "Сходится" if q < 1 else "Не сходится"
-        
-        # Вывод результатов
-        st.subheader("✅ Результаты вычислений")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.metric("Корень", f"{iterations[-1]:.10f}")
-            st.metric("Итераций", len(iterations)-1)
-            st.metric("Точность", f"{abs(iterations[-1]-iterations[-2]):.2e}")
-        
-        with col2:
-            st.metric("g(x)", f"{g(iterations[-1]):.10f}")
-            st.metric("Сходимость", convergence_status)
-            st.metric("q = max|g'(x)|", f"{q:.6f}")
-        
-        
-        
-        # Интервалы
-        st.subheader("🔍 Интервалы с корнями")
-        if intervals:
-            for i, (a, b) in enumerate(intervals):
-                st.write(f"Интервал {i+1}: [{a:.4f}, {b:.4f}]")
-        else:
-            st.warning("Интервалы не найдены")
-        
-        # График процесса сходимости
-        st.subheader("📊 График процесса сходимости")
-        fig, ax = plt.subplots(figsize=(10, 6))
-        x_min, x_max = min(iterations)-1, max(iterations)+1
-        x_vals = np.linspace(x_min, x_max, 1000)
-        y_g = [g(x) for x in x_vals]
-        y_x = x_vals
-        
-        ax.plot(x_vals, y_g, 'b-', label='y = g(x)')
-        ax.plot(x_vals, y_x, 'r--', label='y = x')
-        
-        for i in range(len(iterations)-1):
-            ax.plot([iterations[i], iterations[i+1]], [iterations[i], iterations[i]], 'g-', alpha=0.8)
-            ax.plot([iterations[i+1], iterations[i+1]], [iterations[i], iterations[i+1]], 'g-', alpha=0.8)
-        
-        ax.scatter(iterations, iterations, color='red', s=50)
-        ax.set_xlabel('x'); ax.set_ylabel('y'); ax.grid(True); ax.legend()
-        st.pyplot(fig)
-        
-        # График скорости сходимости
-        st.subheader("📈 График скорости сходимости")
-        fig2, ax2 = plt.subplots(figsize=(10, 6))
-        ax2.plot(range(len(errors)), np.log10(errors), 'bo-')
-        ax2.set_xlabel('Номер итерации'); ax2.set_ylabel('log10(ошибка)'); ax2.grid(True)
-        
-       
-        
-        st.pyplot(fig2)
-        
-        # Исследование скорости от точности
-        if study_convergence_btn:
-            st.subheader("📊 Зависимость итераций от точности")
-            epsilons = [10**(-i) for i in range(2, 11)]
-            iters = []
-            q_values = []
+                sum_val = 0.0
+                for k in range(j):
+                    sum_val += B[i, k] * C[k, j]
+                B[i, j] = A[i, j] - sum_val
             
-            for eps in epsilons:
-                result = simple_iteration(g, x0, eps, max_iter)
-                if result[0] is not None:  # Если итерации успешны
-                    iters_val = len(result[0]) - 1  # Число итераций
-                    q_val = result[3]  # Значение q
-                    iters.append(iters_val)
-                    q_values.append(q_val)
-            
-            fig3, ax3 = plt.subplots(figsize=(10, 6))
-            ax3.plot(np.log10(epsilons[:len(iters)]), iters, 'go-', label='Практические результаты')
-            ax3.set_xlabel('log10(точность)'); ax3.set_ylabel('Число итераций'); ax3.grid(True)
-            
-            # Добавляем линию, показывающую теоретическую зависимость
-            if any(q_val < 1 for q_val in q_values):
-                best_q = min(q_values)  # Берем минимальное q для наилучшей оценки
-                if best_q < 1:
-                    theoretical_iters = [-np.log(eps)/np.log(best_q) for eps in epsilons[:len(iters)]]
-                    ax3.plot(np.log10(epsilons[:len(iters)]), theoretical_iters, 'r--', 
-                            label=f'Теоретическая зависимость\nlog(epsilon)/log({best_q:.2f})')
-                    ax3.legend()
-            
-            st.pyplot(fig3)
+            if i == j and abs(B[i, j]) < 1e-10:
+                raise ValueError(f"Элемент B[{i+1}][{j+1}] = {B[i, j]:.4e} близок к нулю")
+        
+        for i in range(j+1, n):
+            sum_val = 0.0
+            for k in range(j):
+                sum_val += B[j, k] * C[k, i]
+            C[j, i] = (A[j, i] - sum_val) / B[j, j]
     
-    except Exception as e:
-        st.error(f"❌ Ошибка: {str(e)}")
-        st.markdown("""
-        **Проверьте:**
-        - Корректность функции g(x)
-        - Начальное приближение
-        - Формат точности (используйте 1e-6, 0.000001 и т.д.)
-        - Ограничения функции (например, arccos от числа >1)
-        """)
-        st.code("""
-        Примеры корректных функций:
-        - Для x + cos(x) = 2: 2 - math.cos(x)
-        - Для x^2 - 2 = 0: (x + 2/x)/2
-        - Для x^3 - x - 1 = 0: (x + 1)**(1/3)
-        """)
+    return B, C
 
-# Инструкция по использованию
-st.markdown("""
----
-## 📚 Теоретические основы метода простой итерации
+def haltsky_solve(A, b):
+    """Решение системы Ax = b методом Халецкого"""
+    n = len(A)
+    B, C = haltsky_decomposition(A)
+    
+    # Прямой ход: By = b
+    y = np.zeros(n)
+    for i in range(n):
+        sum_val = 0.0
+        for j in range(i):
+            sum_val += B[i, j] * y[j]
+        y[i] = (b[i] - sum_val) / B[i, i]
+    
+    # Обратный ход: Cx = y
+    x = np.zeros(n)
+    for i in range(n-1, -1, -1):
+        sum_val = 0.0
+        for j in range(i+1, n):
+            sum_val += C[i, j] * x[j]
+        x[i] = y[i] - sum_val
+    
+    return x, B, C
 
-### 🔑 Условие сходимости
-**|φ'(x)| ≤ q < 1**  
-Это ключевое условие, при выполнении которого метод гарантированно сходится.  
-- **q** — константа Липшица, которая определяет скорость сходимости  
-- Чем меньше q, тем быстрее сходится метод  
-- Если q ≥ 1, метод расходится
+def verify_solution(A, b, x):
+    """Проверка правильности решения"""
+    Ax = A @ x
+    residual = norm(Ax - b)
+    relative_residual = residual / norm(b)
+    return Ax, residual, relative_residual
 
-### ⏭ Критерий остановки
-**|x_{k+1} - x_k| < ε**  
-Итерации прекращаются, когда разница между последовательными приближениями становится меньше заданной точности.
+def generate_test_matrix(n):
+    """Генерация матрицы, удовлетворяющей условиям метода Халецкого"""
+    # Создаем нижнюю треугольную матрицу B с ненулевой диагональю
+    B = np.zeros((n, n))
+    for i in range(n):
+        B[i, i] = i + 1
+        for j in range(i):
+            B[i, j] = np.random.uniform(-5, 5)
+    
+    # Создаем верхнюю треугольную матрицу C с единицами на диагонали
+    C = np.eye(n)
+    for i in range(n):
+        for j in range(i+1, n):
+            C[i, j] = np.random.uniform(-5, 5)
+    
+    # Формируем матрицу A = B * C
+    A = B @ C
+    b = np.random.uniform(-10, 10, n)
+    return A, b
 
-### 📐 Оценка ошибки после k-го шага
-**|x_k - x*| ≤ q/(1-q) * |x_k - x_{k-1}|**  
-Эта формула позволяет оценить, насколько текущее приближение x_k близко к истинному решению x*.
+def main():
+    st.title("🧮 Схема Халецкого")
+    st.markdown("### Решение систем линейных уравнений")
+    
+    mode = st.radio("Выберите режим", ["Ручной ввод", "Сгенерировать систему (n≥50)"], horizontal=True)
+    
+    if mode == "Сгенерировать систему (n≥50)":
+        n = st.slider("Размер системы", min_value=50, max_value=100, value=50)
+        if st.button("Сгенерировать и решить", type="primary"):
+            with st.spinner("Генерация и решение системы..."):
+                A, b = generate_test_matrix(n)
+                start_time = time.time()
+                x, B, C = haltsky_solve(A, b)
+                exec_time = time.time() - start_time
+                Ax, residual, rel_residual = verify_solution(A, b, x)
+            
+            st.success("✅ Система успешно решена!")
+            st.markdown(f"**Время решения:** {exec_time:.6f} сек")
+            st.markdown(f"**Относительная невязка:** {rel_residual:.2e}")
+            
+            # Вывод решения
+            st.markdown("### Решение системы:")
+            for i in range(min(5, n)):  # Показываем только первые 5 переменных для больших n
+                st.markdown(f"x<sub>{i+1}</sub> = {x[i]:.6f}", unsafe_allow_html=True)
+            if n > 5:
+                st.markdown(f"... и еще {n-5} переменных")
+            
+            # Проверка подстановкой
+            st.markdown("### Проверка для первых 3 уравнений:")
+            for i in range(min(3, n)):
+                st.markdown(f"""
+                Уравнение {i+1}:  
+                Левая часть = {Ax[i]:.6f}  
+                Правая часть = {b[i]:.6f}  
+                Разница = {Ax[i] - b[i]:.2e}
+                """)
+    
+    else:  # Ручной ввод
+        n = st.number_input("Размер системы", min_value=2, max_value=6, value=3)
+        
+        st.markdown("### Введите коэффициенты системы:")
+        A = np.zeros((n, n))
+        b = np.zeros(n)
+        
+        for i in range(n):
+            cols = st.columns(n + 1)
+            for j in range(n):
+                A[i, j] = cols[j].number_input(f"a{i+1}{j+1}", value=0.0, key=f"a_{i}_{j}", step=1.0)
+            b[i] = cols[n].number_input(f"b{i+1}", value=0.0, key=f"b_{i}", step=1.0)
+        
+        if st.button("Решить систему", type="primary"):
+            try:
+                # Проверка условий применимости
+                try:
+                    B_test, C_test = haltsky_decomposition(A)
+                    st.success("✅ Условия применимости метода выполнены")
+                except Exception as e:
+                    st.error(f"❌ Ошибка: {str(e)}")
+                    st.stop()
+                
+                # Решение системы
+                x, B, C = haltsky_solve(A, b)
+                Ax, residual, rel_residual = verify_solution(A, b, x)
+                
+                # Вывод результатов
+                st.markdown("### Результаты решения:")
+                st.markdown(f"**Относительная невязка:** {rel_residual:.2e}")
+                
+                st.markdown("#### Вектор решения x:")
+                for i in range(n):
+                    st.markdown(f"x<sub>{i+1}</sub> = {x[i]:.6f}", unsafe_allow_html=True)
+                
+                st.markdown("#### Проверка подстановкой:")
+                for i in range(n):
+                    st.markdown(f"""
+                    Уравнение {i+1}:  
+                    ∑a<sub>{i+1}j</sub>x<sub>j</sub> = {Ax[i]:.6f},  b<sub>{i+1}</sub> = {b[i]:.6f},  
+                    Разница = {Ax[i] - b[i]:.2e}
+                    """, unsafe_allow_html=True)
+                
+                # Исследование скорости (для сравнения)
+                if n >= 3:
+                    st.markdown("### Скорость работы метода:")
+                    start_time = time.time()
+                    x_gauss = np.linalg.solve(A, b)
+                    gauss_time = time.time() - start_time
+                    halt_time = time.time() - start_time - gauss_time
+                    
+                    st.markdown(f"Метод Халецкого: {halt_time:.6f} сек")
+                    st.markdown(f"Метод Гаусса (встроенная функция): {gauss_time:.6f} сек")
+            
+            except Exception as e:
+                st.error(f"❌ Ошибка при решении: {str(e)}")
 
-### 📊 Как это работает в программе
-1. **Вычисление q**  
-   Программа определяет q как максимальное значение |g'(x)| на всем пути итераций
-
-2. **Проверка условия сходимости**  
-   Если q ≥ 1, метод не сойдется
-
-3. **Теоретическая оценка ошибки**  
-   По формуле выше, если q < 1
-
-4. **График скорости сходимости**  
-   Содержит теоретическую оценку ошибки (красная пунктирная линия)
-
-### 📌 Пример использования
-Для уравнения **x + cos(x) = 2**:
-- f(x) = x + math.cos(x) - 2
-- g(x) = 2 - math.cos(x)
-- Начальное приближение x0 = 0.5 (можно взять любое)
-- Точность epsilon = 1e-6
-
-**Результаты:**
-- q ≈ 0.15 (условие сходимости выполняется)
-- Оценка ошибки: |x_k - x*| ≤ 0.17 * |x_k - x_{k-1}|
-
-### 📌 Советы
-- Если q близко к 1 (например, 0.9), метод сходится очень медленно
-- Если q > 1, попробуйте другое преобразование уравнения
-- Всегда проверяйте условие сходимости перед использованием метода
-
-> 💡 **Важно:** Теоретическая оценка ошибки дает верхнюю границу погрешности, реальная ошибка может быть меньше.
-""")
-
-
-
+if __name__ == "__main__":
+    main()

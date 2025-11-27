@@ -1,9 +1,9 @@
 import streamlit as st
 import numpy as np
 import time
-from numpy.linalg import norm
+from numpy.linalg import norm, eigvals
 
-st.set_page_config(page_title="Схема Халецкого", page_icon="🧮", layout="wide")
+st.set_page_config(page_title="Сравнение методов", page_icon="🧮", layout="wide")
 
 def haltsky_decomposition(A):
     """Разложение A = B*C по формулам из учебника"""
@@ -38,6 +38,7 @@ def haltsky_decomposition(A):
 def haltsky_solve(A, b):
     """Решение системы Ax = b методом Халецкого"""
     n = len(A)
+    start_time = time.time()
     B, C = haltsky_decomposition(A)
     
     # Прямой ход: By = b
@@ -56,7 +57,47 @@ def haltsky_solve(A, b):
             sum_val += C[i, j] * x[j]
         x[i] = y[i] - sum_val
     
-    return x, B, C
+    execution_time = time.time() - start_time
+    return x, execution_time
+
+def square_root_method(A, b):
+    """Решение системы методом квадратных корней (Холецкого)"""
+    n = len(A)
+    start_time = time.time()
+    
+    # Проверка симметричности
+    if not np.allclose(A, A.T, atol=1e-8):
+        raise ValueError("Матрица не симметричная. Метод квадратных корней неприменим.")
+    
+    # Проверка положительной определенности через собственные значения
+    eigenvalues = eigvals(A)
+    min_eig = np.min(np.real(eigenvalues))
+    if min_eig <= 1e-8:
+        raise ValueError(f"Матрица не положительно определена (мин. собств. значение = {min_eig:.4e}).")
+    
+    # Разложение Холецкого: A = L * L^T
+    L = np.zeros((n, n))
+    
+    for i in range(n):
+        for j in range(i+1):
+            sum_val = sum(L[i, k] * L[j, k] for k in range(j))
+            if i == j:
+                L[i, j] = np.sqrt(A[i, i] - sum_val)
+            else:
+                L[i, j] = (A[i, j] - sum_val) / L[j, j]
+    
+    # Прямой ход: L * y = b
+    y = np.zeros(n)
+    for i in range(n):
+        y[i] = (b[i] - sum(L[i, j] * y[j] for j in range(i))) / L[i, i]
+    
+    # Обратный ход: L^T * x = y
+    x = np.zeros(n)
+    for i in range(n-1, -1, -1):
+        x[i] = (y[i] - sum(L[j, i] * x[j] for j in range(i+1, n))) / L[i, i]
+    
+    execution_time = time.time() - start_time
+    return x, execution_time
 
 def verify_solution(A, b, x):
     """Проверка правильности решения"""
@@ -66,28 +107,19 @@ def verify_solution(A, b, x):
     return Ax, residual, relative_residual
 
 def generate_test_matrix(n):
-    """Генерация матрицы, удовлетворяющей условиям метода Халецкого"""
-    # Создаем нижнюю треугольную матрицу B с ненулевой диагональю
-    B = np.zeros((n, n))
-    for i in range(n):
-        B[i, i] = i + 1
-        for j in range(i):
-            B[i, j] = np.random.uniform(-5, 5)
+    """Генерация симметричной положительно определенной матрицы для обоих методов"""
+    # Создаем случайную матрицу
+    M = np.random.randn(n, n)
+    # Делаем матрицу симметричной и положительно определенной
+    A = M.T @ M + n * np.eye(n)  # A = M^T * M + n*I
     
-    # Создаем верхнюю треугольную матрицу C с единицами на диагонали
-    C = np.eye(n)
-    for i in range(n):
-        for j in range(i+1, n):
-            C[i, j] = np.random.uniform(-5, 5)
-    
-    # Формируем матрицу A = B * C
-    A = B @ C
+    # Генерируем вектор правых частей
     b = np.random.uniform(-10, 10, n)
     return A, b
 
 def main():
-    st.title("🧮 Схема Халецкого")
-    st.markdown("### Решение систем линейных уравнений")
+    st.title("🧮 Сравнение методов решения СЛАУ")
+    st.markdown("### Метод Халецкого vs Метод квадратных корней (Холецкого)")
     
     mode = st.radio("Выберите режим", ["Ручной ввод", "Сгенерировать систему (n≥50)"], horizontal=True)
     
@@ -97,40 +129,71 @@ def main():
         if st.button("Сгенерировать и решить", type="primary"):
             with st.spinner("Генерация и решение системы..."):
                 A, b = generate_test_matrix(n)
-                start_time = time.time()
-                x, B, C = haltsky_solve(A, b)
-                exec_time = time.time() - start_time
-                Ax, residual, rel_residual = verify_solution(A, b, x)
+                st.session_state.A = A
+                st.session_state.b = b
+                st.session_state.n = n
+                
+                # Решение методом Халецкого
+                x_halt, time_halt = haltsky_solve(A, b)
+                Ax_halt, res_halt, rel_res_halt = verify_solution(A, b, x_halt)
+                
+                # Решение методом квадратных корней
+                x_sqroot, time_sqroot = square_root_method(A, b)
+                Ax_sqroot, res_sqroot, rel_res_sqroot = verify_solution(A, b, x_sqroot)
+                
+                # Сохраняем результаты в session_state
+                st.session_state.x_halt = x_halt
+                st.session_state.x_sqroot = x_sqroot
+                st.session_state.time_halt = time_halt
+                st.session_state.time_sqroot = time_sqroot
+                st.session_state.res_halt = rel_res_halt
+                st.session_state.res_sqroot = rel_res_sqroot
+                st.session_state.solved = True
             
-            st.success("✅ Система успешно решена!")
-            st.markdown(f"**Время решения:** {exec_time:.6f} сек")
-            st.markdown(f"**Относительная невязка:** {rel_residual:.2e}")
-            
-            # Вывод всей сгенерированной матрицы
-            with st.expander("Показать сгенерированную матрицу A (все элементы)", expanded=False):
-                st.markdown("#### Матрица коэффициентов A:")
-                # Выводим матрицу частями для лучшей читаемости
-                for i in range(n):
-                    row_str = " ".join([f"{A[i,j]:.2f}" for j in range(n)])
-                    st.text(f"Строка {i+1}: {row_str}")
-            
-            # Вывод всего вектора b
-            with st.expander("Показать вектор правых частей b (все элементы)", expanded=False):
-                st.markdown("#### Вектор правых частей b:")
-                for i in range(n):
-                    st.text(f"b[{i+1}] = {b[i]:.2f}")
-            
-            # Вывод всего решения
-            with st.expander("Показать полное решение (все x)", expanded=True):
-                st.markdown("#### Полное решение системы:")
-                for i in range(n):
-                    st.text(f"x[{i+1}] = {x[i]:.6f}")
-            
-            # Вывод проверки подстановкой для всех уравнений
-            with st.expander("Показать проверку подстановкой (все уравнения)", expanded=False):
-                st.markdown("#### Проверка подстановкой для всех уравнений:")
-                for i in range(n):
-                    st.text(f"Ур-е {i+1}: Ax = {Ax[i]:.6f}, b = {b[i]:.6f}, разница = {Ax[i]-b[i]:.2e}")
+            if st.session_state.solved:
+                st.success("✅ Система успешно решена обоими методами!")
+                
+                # Сравнение времени выполнения
+                st.markdown("### ⏱️ Сравнение времени выполнения")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Метод Халецкого", f"{st.session_state.time_halt:.6f} сек")
+                with col2:
+                    st.metric("Метод квадратных корней", f"{st.session_state.time_sqroot:.6f} сек")
+                
+                if st.session_state.time_halt < st.session_state.time_sqroot:
+                    st.success(f"✅ Метод Халецкого быстрее в {st.session_state.time_sqroot/st.session_state.time_halt:.1f} раз!")
+                else:
+                    st.info(f"ℹ️ Метод квадратных корней быстрее в {st.session_state.time_halt/st.session_state.time_sqroot:.1f} раз")
+                
+                # Сравнение точности
+                st.markdown("### 📏 Сравнение точности")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Относительная невязка (Халецкий)", f"{st.session_state.res_halt:.2e}")
+                with col2:
+                    st.metric("Относительная невязка (Квадратные корни)", f"{st.session_state.res_sqroot:.2e}")
+                
+                # Вывод полного решения
+                with st.expander("Показать полное решение (все x)", expanded=True):
+                    st.markdown("#### Решение методом Халецкого:")
+                    for i in range(st.session_state.n):
+                        st.text(f"x[{i+1}] = {st.session_state.x_halt[i]:.6f}")
+                    
+                    st.markdown("#### Решение методом квадратных корней:")
+                    for i in range(st.session_state.n):
+                        st.text(f"x[{i+1}] = {st.session_state.x_sqroot[i]:.6f}")
+                
+                # Сравнение решений
+                st.markdown("### 📊 Сравнение решений")
+                differences = st.session_state.x_halt - st.session_state.x_sqroot
+                max_diff = np.max(np.abs(differences))
+                st.markdown(f"**Максимальная разница между решениями:** {max_diff:.2e}")
+                
+                if max_diff < 1e-6:
+                    st.success("✅ Решения практически совпадают!")
+                else:
+                    st.warning("⚠️ Решения различаются. Проверьте вычисления.")
     
     else:  # Ручной ввод
         n = st.number_input("Размер системы", min_value=2, max_value=6, value=3)
@@ -147,47 +210,85 @@ def main():
         
         if st.button("Решить систему", type="primary"):
             try:
-                # Проверка условий применимости
+                # Проверка условий применимости для Халецкого
                 try:
                     B_test, C_test = haltsky_decomposition(A)
-                    st.success("✅ Условия применимости метода выполнены")
+                    st.success("✅ Условия применимости для метода Халецкого выполнены")
                 except Exception as e:
-                    st.error(f"❌ Ошибка: {str(e)}")
+                    st.error(f"❌ Ошибка для метода Халецкого: {str(e)}")
                     st.stop()
                 
-                # Решение системы
-                x, B, C = haltsky_solve(A, b)
-                Ax, residual, rel_residual = verify_solution(A, b, x)
+                # Проверка условий для метода квадратных корней
+                is_symmetric = np.allclose(A, A.T, atol=1e-8)
+                eigenvalues = eigvals(A)
+                min_eig = np.min(np.real(eigenvalues))
+                is_pos_def = min_eig > 1e-8
+                
+                if is_symmetric and is_pos_def:
+                    st.success(f"✅ Условия для метода квадратных корней выполнены (мин. собств. значение = {min_eig:.4e})")
+                else:
+                    if not is_symmetric:
+                        st.warning("⚠️ Матрица не симметричная. Метод квадратных корней неприменим!")
+                    if not is_pos_def:
+                        st.warning(f"⚠️ Матрица не положительно определена (мин. собств. значение = {min_eig:.4e}).")
+                
+                # Решение методом Халецкого
+                x_halt, time_halt = haltsky_solve(A, b)
+                Ax_halt, res_halt, rel_res_halt = verify_solution(A, b, x_halt)
+                
+                # Решение методом квадратных корней (если применим)
+                try:
+                    x_sqroot, time_sqroot = square_root_method(A, b)
+                    Ax_sqroot, res_sqroot, rel_res_sqroot = verify_solution(A, b, x_sqroot)
+                    method_sqroot_applicable = True
+                except Exception as e:
+                    st.error(f"❌ Метод квадратных корней не применим: {str(e)}")
+                    method_sqroot_applicable = False
                 
                 # Вывод результатов
-                st.markdown("### Результаты решения:")
-                st.markdown(f"**Относительная невязка:** {rel_residual:.2e}")
+                st.markdown("### 📋 Результаты решения")
                 
+                # Время выполнения
+                st.markdown("#### Время выполнения:")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Халецкий", f"{time_halt:.6f} сек")
+                with col2:
+                    if method_sqroot_applicable:
+                        st.metric("Квадратные корни", f"{time_sqroot:.6f} сек")
+                    else:
+                        st.metric("Квадратные корни", "Неприменим")
+                
+                # Точность
+                st.markdown("#### Точность решения:")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Невязка (Халецкий)", f"{rel_res_halt:.2e}")
+                with col2:
+                    if method_sqroot_applicable:
+                        st.metric("Невязка (Квадратные корни)", f"{rel_res_sqroot:.2e}")
+                
+                # Решение
                 st.markdown("#### Вектор решения x:")
                 for i in range(n):
-                    st.markdown(f"x<sub>{i+1}</sub> = {x[i]:.6f}", unsafe_allow_html=True)
+                    result_text = f"x<sub>{i+1}</sub>:<br>Халецкий: {x_halt[i]:.6f}"
+                    if method_sqroot_applicable:
+                        result_text += f"<br>Квадратные корни: {x_sqroot[i]:.6f}"
+                        result_text += f"<br>Разница: {abs(x_halt[i] - x_sqroot[i]):.2e}"
+                    st.markdown(result_text, unsafe_allow_html=True)
                 
-                st.markdown("#### Проверка подстановкой:")
-                for i in range(n):
-                    st.markdown(f"""
-                    Уравнение {i+1}:  
-                    ∑a<sub>{i+1}j</sub>x<sub>j</sub> = {Ax[i]:.6f},  b<sub>{i+1}</sub> = {b[i]:.6f},  
-                    Разница = {Ax[i] - b[i]:.2e}
-                    """, unsafe_allow_html=True)
-                
-                # Исследование скорости (для сравнения)
-                if n >= 3:
-                    st.markdown("### Скорость работы метода:")
-                    start_time = time.time()
-                    x_gauss = np.linalg.solve(A, b)
-                    gauss_time = time.time() - start_time
-                    halt_time = time.time() - start_time - gauss_time
-                    
-                    st.markdown(f"Метод Халецкого: {halt_time:.6f} сек")
-                    st.markdown(f"Метод Гаусса (встроенная функция): {gauss_time:.6f} сек")
+                # Сравнение решений (если оба метода применимы)
+                if method_sqroot_applicable:
+                    st.markdown("### 📊 Сравнение решений")
+                    differences = x_halt - x_sqroot
+                    max_diff = np.max(np.abs(differences))
+                    st.markdown(f"**Максимальная разница:** {max_diff:.2e}")
+                    if max_diff < 1e-6:
+                        st.success("✅ Решения практически совпадают!")
             
             except Exception as e:
                 st.error(f"❌ Ошибка при решении: {str(e)}")
+                st.exception(e)
 
 if __name__ == "__main__":
     main()

@@ -8,7 +8,7 @@ st.set_page_config(page_title="Схема Халецкого", page_icon="🧮",
 def add_bg_image():
     """Добавляет фоновое изображение из интернета"""
     # 🔗 ЗАМЕНИТЕ ЭТУ ССЫЛКУ НА СВОЮ КАРТИНКУ ИЗ ИНТЕРНЕТА
-    image_url = "https://ru.freepik.com/free-vector/gradient-hexagonal-background_13756536.htm#fromView=keyword&page=1&position=34&uuid=1ff9bddf-0c3e-4ba1-bdd2-c47e26da6487&query=%D0%A4%D0%BE%D0%BD+%D0%B4%D0%BB%D1%8F+%D1%81%D0%B0%D0%B9%D1%82%D0%B0"
+    image_url = "https://images.unsplash.com/photo-1552825291-d028a2f9e9c2?w=1200"
     
     # CSS стили для фона
     st.markdown(
@@ -232,5 +232,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 

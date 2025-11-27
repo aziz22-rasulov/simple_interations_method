@@ -93,42 +93,11 @@ def main():
     if 'started' not in st.session_state:
         st.session_state.started = False
     
-    # 🌄 Стартовый экран с фоном из локального файла и liquid glass кнопкой
+    # 🌄 Стартовый экран с фоном и кнопкой liquid glass
     if not st.session_state.started:
-        # CSS стили для liquid glass эффекта
+        # CSS для стиля liquid glass и позиционирования
         st.markdown("""
         <style>
-        .start-screen {
-            text-align: center;
-            padding: 2rem;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        .app-title {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            color: #1e3c72;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-        }
-        .app-subtitle {
-            font-size: 1.5rem;
-            color: #3a5a72;
-            margin-bottom: 2rem;
-        }
-        .description {
-            max-width: 600px;
-            margin: 0 auto 2rem;
-            line-height: 1.6;
-            color: #4a6a82;
-            background: rgba(255, 255, 255, 0.7);
-            padding: 1.5rem;
-            border-radius: 10px;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-        }
         .liquid-glass-btn {
             background: rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(12px);
@@ -136,20 +105,20 @@ def main():
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 16px;
             color: white !important;
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             font-weight: 600;
-            padding: 12px 24px;
-            margin: 20px auto;
-            width: 220px;
+            padding: 15px 30px;
+            margin: 0 auto;
+            width: 250px;
             display: block;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
         }
         .liquid-glass-btn:hover {
-            background: linear-gradient(135deg, #5a6fd8 0%, #6a3d9a 100%);
+            background: linear-gradient(135deg, #2980b9 0%, #27ae60 100%);
             transform: translateY(-2px);
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
         }
@@ -157,77 +126,58 @@ def main():
             transform: translateY(0);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
+        .start-screen {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; /* Выравнивание по верху */
+            align-items: center;
+            text-align: center;
+            padding-top: 25vh; /* Отступ сверху 25% от высоты экрана */
+        }
         </style>
         """, unsafe_allow_html=True)
         
         try:
-            # 📁 Автоматическое определение пути к файлу
+            # Автоматическое определение пути к файлу
             import os
             import base64
             
-            # Определяем путь к файлу (работает и локально, и в Streamlit Cloud)
             image_path = "background.png"
             
-            # Проверяем, существует ли файл
             if os.path.exists(image_path):
-                # Читаем файл и конвертируем в base64
                 with open(image_path, "rb") as img_file:
                     bg_image_base64 = base64.b64encode(img_file.read()).decode()
                 
-                # Применяем фон через base64
                 st.markdown(f"""
                 <style>
                 .start-screen {{
-                    background: linear-gradient(rgba(255, 255, 255, 0.85), rgba(240, 248, 255, 0.85)), url("data:image/png;base64,{bg_image_base64}");
+                    background: url("data:image/png;base64,{bg_image_base64}");
                     background-size: cover;
                     background-position: center;
                     background-repeat: no-repeat;
                 }}
                 </style>
                 """, unsafe_allow_html=True)
-            else:
-                # Резервный градиентный фон, если файл не найден
-                st.markdown("""
-                <style>
-                .start-screen {
-                    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-                }
-                </style>
-                """, unsafe_allow_html=True)
-                st.warning("⚠️ Файл background.png не найден. Используется градиентный фон.")
+        except:
+            pass
         
-        except Exception as e:
-            # Резервный вариант при любой ошибке
-            st.markdown("""
-            <style>
-            .start-screen {
-                background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            }
-            </style>
-            """, unsafe_allow_html=True)
-            st.warning(f"⚠️ Ошибка загрузки фона: {str(e)}. Используется градиентный фон.")
+        # Контейнер для кнопки с дополнительным отступом сверху
+        st.markdown('<div class="start-screen">', unsafe_allow_html=True)
         
-        # Контент стартового экрана
-        st.markdown("""
-        <div class="start-screen">
-            <h1 class="app-title">🧮 Добро пожаловать в решатель СЛАУ!</h1>
-            <h2 class="app-subtitle">Метод Халецкого</h2>
-            <div class="description">
-                Это приложение решает системы линейных уравнений методом Халецкого.
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Пустой div для дополнительного пространства сверху
+        st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
         
-        # Кнопка в стиле liquid glass (центрированная)
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            if st.button("🚀 Начать работу", type="primary", use_container_width=True, key="start_btn"):
-                st.session_state.started = True
-                st.rerun()
+        # Центрированная кнопка в стиле liquid glass
+        if st.button("🚀 Начать", type="primary", use_container_width=False, key="start_btn"):
+            st.session_state.started = True
+            st.rerun()
         
-        return  # Важно: останавливаем выполнение, пока пользователь не нажмёт "Начать"
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        return  # Останавливаем выполнение, пока пользователь не нажмёт "Начать"
     
-    # 📊 Основной интерфейс БЕЗ ФОНА
+    # 📊 Основной интерфейс
     st.title("🧮 Схема Халецкого")
     st.markdown("### Решение систем линейных уравнений")
     
@@ -331,6 +281,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 

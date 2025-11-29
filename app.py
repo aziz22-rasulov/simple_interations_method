@@ -7,7 +7,7 @@ st.set_page_config(page_title="Схема Халецкого", page_icon="🧮",
 
 
 def haltsky_decomposition(A):
-  
+    """Разложение A = B*C по формулам из учебника"""
     n = len(A)
     B = np.zeros((n, n))
     C = np.zeros((n, n))
@@ -67,43 +67,6 @@ def verify_solution(A, b, x):
     residual = norm(Ax - b)
     relative_residual = residual / norm(b)
     return Ax, residual, relative_residual
-
-def simple_iterations(A, b, tol=1e-6, max_iter=1000):
-    """Решение системы методом простых итераций"""
-    n = len(A)
-    x = np.zeros(n)
-    start_time = time.time()
-    
-    # Проверка диагонального преобладания для сходимости
-    for i in range(n):
-        diagonal = abs(A[i, i])
-        row_sum = sum(abs(A[i, j]) for j in range(n) if j != i)
-        if diagonal <= row_sum:
-            raise ValueError("Матрица не имеет диагонального преобладания. Метод простых итераций может не сходиться.")
-    
-    # Преобразование системы к виду x = Bx + c
-    B = np.zeros((n, n))
-    c = np.zeros(n)
-    
-    for i in range(n):
-        for j in range(n):
-            if i != j:
-                B[i, j] = -A[i, j] / A[i, i]
-        c[i] = b[i] / A[i, i]
-    
-    iterations = 0
-    for _ in range(max_iter):
-        x_new = B @ x + c
-        iterations += 1
-        
-        # Проверка сходимости
-        if norm(x_new - x) < tol:
-            execution_time = time.time() - start_time
-            return x_new, execution_time, iterations
-        
-        x = x_new
-    
-    raise ValueError(f"Метод простых итераций не сошелся за {max_iter} итераций")
 
 def generate_test_matrix(n):
     """Генерация матрицы, удовлетворяющей условиям применимости метода Халецкого"""
@@ -229,30 +192,10 @@ def main():
                 start_time = time.time()
                 x, B, C, exec_time = haltsky_solve(A, b)
                 Ax, residual, rel_residual = verify_solution(A, b, x)
-                
-                # Решение методом простых итераций для сравнения
-                try:
-                    x_iter, iter_time, iters = simple_iterations(A, b)
-                    iter_residual = norm(A @ x_iter - b) / norm(b)
-                    iter_success = True
-                except Exception as e:
-                    iter_success = False
-                    iter_error = str(e)
             
             st.success("✅ Система успешно решена!")
-            st.markdown(f"**Время решения методом Халецкого:** {exec_time:.6f} сек")
+            st.markdown(f"**Время решения:** {exec_time:.6f} сек")
             st.markdown(f"**Относительная невязка:** {rel_residual:.2e}")
-            
-            if iter_success:
-                st.markdown(f"**Время решения методом простых итераций:** {iter_time:.6f} сек")
-                st.markdown(f"**Количество итераций:** {iters}")
-                st.markdown(f"**Относительная невязка (итерации):** {iter_residual:.2e}")
-                if exec_time < iter_time:
-                    st.markdown(f"✅ Метод Халецкого быстрее в {iter_time/exec_time:.1f} раз")
-                else:
-                    st.markdown(f"✅ Метод простых итераций быстрее в {exec_time/iter_time:.1f} раз")
-            else:
-                st.warning(f"⚠️ Метод простых итераций не сошелся: {iter_error}")
             
             # Вывод всей сгенерированной матрицы
             with st.expander("Показать сгенерированную матрицу A (все элементы)", expanded=False):
@@ -297,26 +240,17 @@ def main():
                 # Проверка условий применимости
                 try:
                     B_test, C_test = haltsky_decomposition(A)
-                    st.success("✅ Условия применимости метода Халецкого выполнены")
+                    st.success("✅ Условия применимости метода выполнены")
                 except Exception as e:
                     st.error(f"❌ Ошибка: {str(e)}")
                     st.stop()
                 
-                # Решение системы методом Халецкого
+                # Решение системы
                 x, B, C, exec_time = haltsky_solve(A, b)
                 Ax, residual, rel_residual = verify_solution(A, b, x)
                 
-                # Решение методом простых итераций
-                try:
-                    x_iter, iter_time, iters = simple_iterations(A, b)
-                    iter_residual = norm(A @ x_iter - b) / norm(b)
-                    iter_success = True
-                except Exception as e:
-                    iter_success = False
-                    iter_error = str(e)
-                
-                # Вывод результатов Халецкого
-                st.markdown("### Результаты решения методом Халецкого:")
+                # Вывод результатов
+                st.markdown("### Результаты решения:")
                 st.markdown(f"**Время решения:** {exec_time:.6f} сек")
                 st.markdown(f"**Относительная невязка:** {rel_residual:.2e}")
                 
@@ -331,23 +265,6 @@ def main():
                     ∑a<sub>{i+1}j</sub>x<sub>j</sub> = {Ax[i]:.6f},  b<sub>{i+1}</sub> = {b[i]:.6f},  
                     Разница = {Ax[i] - b[i]:.2e}
                     """, unsafe_allow_html=True)
-                
-                # Сравнение скорости
-                st.markdown("### Сравнение скорости выполнения:")
-                st.markdown(f"**Метод Халецкого:** {exec_time:.6f} сек")
-                
-                if iter_success:
-                    st.markdown(f"**Метод простых итераций:** {iter_time:.6f} сек")
-                    st.markdown(f"**Количество итераций:** {iters}")
-                    st.markdown(f"**Относительная невязка (итерации):** {iter_residual:.2e}")
-                    
-                    if exec_time < iter_time:
-                        st.markdown(f"✅ Метод Халецкого быстрее в {iter_time/exec_time:.1f} раз")
-                    else:
-                        st.markdown(f"✅ Метод простых итераций быстрее в {exec_time/iter_time:.1f} раз")
-                else:
-                    st.warning(f"⚠️ Метод простых итераций не сошелся: {iter_error}")
-                    st.markdown("Для сходимости метода простых итераций матрица должна иметь диагональное преобладание.")
             
             except Exception as e:
                 st.error(f"❌ Ошибка при решении: {str(e)}")

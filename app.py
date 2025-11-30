@@ -7,7 +7,6 @@ st.set_page_config(page_title="Схема Халецкого", page_icon="🧮",
 
 
 def haltsky_decomposition(A):
-    """Разложение A = B*C по формулам из учебника"""
     n = len(A)
     B = np.zeros((n, n))
     C = np.zeros((n, n))
@@ -271,3 +270,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
